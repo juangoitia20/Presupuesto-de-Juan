@@ -980,5 +980,47 @@ function showToast(msg,isError) {
   clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2800);
 }
 </script>
+// ════ PUENTE DE CONEXIÓN VERCEL -> GOOGLE SHEETS ════
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzhcTtOROMCtPeWCsRok9qlx0N-bN6ik9tahQcWjvZVBTI5GIoxKiMqoL8_7ooEW326/exec";
+
+const google = {
+  script: {
+    run: {
+      withSuccessHandler: function(cb) { this.cb = cb; return this; },
+      withFailureHandler: function(fb) { this.fb = fb; return this; },
+      
+      // Mapeo de tus funciones de lectura (GET)
+      serverGetConfig: function() { this._call('GET', 'getConfig'); },
+      serverGetMonthData: function(m) { this._call('GET', 'getMonthData', {month: m}); },
+      serverGetAnnualSummary: function() { this._call('GET', 'getAnnualSummary'); },
+
+      // Mapeo de tus funciones de escritura (POST)
+      serverSaveTransaction: function(d) { this._call('POST', 'save', d); },
+      serverUpdateTransaction: function(d) { this._call('POST', 'update', d); },
+      serverDeleteTransaction: function(s, r, c) { this._call('POST', 'delete', {sheetName:s, row:r, startCol:c}); },
+
+      _call: async function(method, action, params = {}) {
+        try {
+          let url = GAS_URL;
+          let options = { method: 'POST', body: JSON.stringify({ action, ...params }) };
+          
+          if (method === 'GET') {
+            const query = new URLSearchParams({ action, ...params }).toString();
+            url += (url.includes('?') ? '&' : '?') + query;
+            options = { method: 'GET' };
+          }
+
+          const resp = await fetch(url, options);
+          const json = await resp.json();
+          if (this.cb) this.cb(json);
+        } catch (err) {
+          console.error("Error en GAS:", err);
+          if (this.fb) this.fb(err);
+        }
+      }
+    }
+  }
+};
+// ════ FIN DEL PUENTE ════
 </body>
 </html>
